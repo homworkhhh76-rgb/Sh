@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>كاش توب</title>
+  <meta name="application-name" content="كاش توب" />
+  <meta name="apple-mobile-web-app-title" content="كاش توب" />
+  <meta name="theme-color" content="#ff7a00" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="logo-192.png" />
+  <link rel="apple-touch-icon" href="logo-192.png" />
+  <link rel="stylesheet" href="style.css?v=20260710" />
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-card">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"><img src="logo-192.png" alt="شعار كاش توب" /></div>
+        <div>
+          <h1>كاش توب</h1>
+          <p>إدارة الشحن + الأصناف + الديون + التقارير</p>
+        </div>
+      </div>
+      <div id="loginError" class="alert hidden"></div>
+      <div class="field">
+        <label>اختر المستخدم</label>
+        <select id="loginUser"></select>
+      </div>
+      <div class="field">
+        <label>كلمة المرور / PIN</label>
+        <input id="loginPin" type="password" placeholder="مثال: 0000" autocomplete="current-password" />
+      </div>
+      <button class="btn" style="width:100%" onclick="login()">دخول</button>
+
+    </div>
+  </div>
+
+  <div id="appShell" class="app-shell hidden">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"><img src="logo-192.png" alt="شعار كاش توب" /></div>
+        <div>
+          <h1>كاش توب</h1>
+          <p>تطبيق ويب لإدارة كاش توب</p>
+        </div>
+      </div>
+      <nav class="nav" id="sideNav"></nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="pageTitle">الرئيسية</h2>
+          <div class="muted" id="todayLine"></div>
+        </div>
+        <div class="actions" style="margin:0">
+          <div class="user-chip">
+            <span class="avatar" id="userAvatar">م</span>
+            <span id="currentUserText">-</span>
+          </div>
+          <button class="btn secondary small hidden" id="installAppBtn" onclick="installApp()">تثبيت التطبيق</button>
+          <button class="btn secondary small" onclick="logout()">خروج</button>
+        </div>
+      </header>
+
+      <div class="content">
+        <section id="dashboard" class="section active">
+          <div class="grid cards" id="dashboardStats"></div>
+          <div class="grid two" style="margin-top:16px">
+            <div class="card">
+              <h3>آخر العمليات <span class="pill">تلقائي</span></h3>
+              <div class="table-wrap" id="recentTable"></div>
+            </div>
+            <div class="card">
+              <h3>تنبيهات مهمة</h3>
+              <div id="alertsBox" class="summary-list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="operations" class="section">
+          <div class="drawer-note">
+            اختر العملية من البطاقات. اختيار الزبون صار بالكتابة مع اقتراحات مباشرة، وأي زبون عليه دين يظهر باللون الأحمر.
+          </div>
+          <div class="operation-choice">
+            <button class="choice" onclick="openOperationModal('charge')">
+              <span class="choice-head"><span class="choice-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M8 2.75h8A2.25 2.25 0 0 1 18.25 5v14A2.25 2.25 0 0 1 16 21.25H8A2.25 2.25 0 0 1 5.75 19V5A2.25 2.25 0 0 1 8 2.75Z" stroke="currentColor" stroke-width="1.8"/><path d="M10 18h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7.25 9.9 12h3.1L12 16.75 15.9 10h-3.1L12 7.25Z" fill="currentColor"/></svg></span><strong>شحن جديد</strong></span>
+              <span>تسجيل عملية شحن داخل نافذة منبثقة، مع جهاز المصدر، قيمة الشحنة، المدفوع، ورصيد الدين.</span>
+            </button>
+            <button class="choice" onclick="openOperationModal('juice')">
+              <span class="choice-head"><span class="choice-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-.9 12.1A2 2 0 0 1 14.1 21H9.9a2 2 0 0 1-2-1.9L7 7Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V4.8c0-1.1.9-2 2-2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 11h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span><strong>بيع صنف</strong></span>
+              <span>بيع صنف من المخزون، إنقاص الكمية تلقائياً، وحساب الدين عند الدفع الجزئي.</span>
+            </button>
+          </div>
+
+          <div class="card stable-card" style="margin-top:16px">
+            <h3><span class="title-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 8.5h16M7 13h4M7 17h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/></svg></span> تسديد دين</h3>
+            <form onsubmit="event.preventDefault(); addPayment();">
+              <div class="row three">
+                <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="paymentCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="paymentCustomer" type="hidden" /><div class="combo-menu" id="paymentCustomerMenu"></div></div></div>
+                <div class="field"><label>قيمة التسديد (شيكل)</label><input id="paymentAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
+                <div class="field"><label>ملاحظة</label><input id="paymentNote" placeholder="اختياري" /></div>
+              </div>
+              <button class="btn secondary">تسجيل تسديد الدين</button>
+            </form>
+          </div>
+
+          <div class="modal hidden" id="operationModal" onclick="closeOperationModal(event)">
+            <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="operationModalTitle" onclick="event.stopPropagation()">
+              <div class="modal-head">
+                <div class="modal-title-wrap">
+                  <span class="modal-icon" id="operationModalIcon"></span>
+                  <div>
+                    <h3 id="operationModalTitle">تسجيل عملية</h3>
+                    <p id="operationModalSub">أدخل البيانات ثم احفظ العملية.</p>
+                  </div>
+                </div>
+                <button class="icon-btn" onclick="closeOperationModal()" aria-label="إغلاق">×</button>
+              </div>
+
+              <div class="card operation-form" id="chargeCard">
+                <h3><span class="title-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M8 2.75h8A2.25 2.25 0 0 1 18.25 5v14A2.25 2.25 0 0 1 16 21.25H8A2.25 2.25 0 0 1 5.75 19V5A2.25 2.25 0 0 1 8 2.75Z" stroke="currentColor" stroke-width="1.8"/><path d="M10 18h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7.25 9.9 12h3.1L12 16.75 15.9 10h-3.1L12 7.25Z" fill="currentColor"/></svg></span> عملية شحن</h3>
+                <form onsubmit="event.preventDefault(); addCharge();">
+                  <div class="row">
+                    <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="chargeCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="chargeCustomer" type="hidden" /><div class="combo-menu" id="chargeCustomerMenu"></div></div></div>
+                    <div class="field"><label>من أي جهاز خرجت الشحنة؟</label><select id="chargeSourcePhone"></select></div>
+                  </div>
+                  <div class="row three">
+                    <div class="field"><label>نوع الجهاز المشحون</label><input id="chargeTargetPhone" placeholder="اختياري، مثال: iPhone / Samsung" /></div>
+                    <div class="field"><label>قيمة الشحنة (شيكل)</label><input id="chargeAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
+                    <div class="field"><label>المدفوع الآن (شيكل)</label><input id="chargePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = دفع كامل" /></div>
+                  </div>
+                  <div class="field"><label>ملاحظة</label><input id="chargeNote" placeholder="اختياري" /></div>
+                  <button class="btn">حفظ عملية الشحن</button>
+                </form>
+              </div>
+
+              <div class="card operation-form hidden" id="juiceCard">
+                <h3><span class="title-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M7 7h10l-.9 12.1A2 2 0 0 1 14.1 21H9.9a2 2 0 0 1-2-1.9L7 7Z" stroke="currentColor" stroke-width="1.8"/><path d="M9 7V4.8c0-1.1.9-2 2-2h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M8 11h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M10 15h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span> بيع صنف</h3>
+                <form onsubmit="event.preventDefault(); addSale();">
+                  <div class="row">
+                    <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="saleCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="saleCustomer" type="hidden" /><div class="combo-menu" id="saleCustomerMenu"></div></div></div>
+                    <div class="field"><label>الصنف</label><select id="saleItem" onchange="fillItemPrice()"></select></div>
+                  </div>
+                  <div class="row three">
+                    <div class="field"><label>الكمية</label><input id="saleQty" type="number" min="1" step="1" value="1" /></div>
+                    <div class="field"><label>سعر الوحدة (شيكل)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" placeholder="0" /></div>
+                    <div class="field"><label>المدفوع الآن (شيكل)</label><input id="salePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = دفع كامل" /></div>
+                  </div>
+                  <div class="field"><label>ملاحظة</label><input id="saleNote" placeholder="اختياري" /></div>
+                  <button class="btn">حفظ عملية بيع الصنف وإنقاص المخزون</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="customers" class="section">
+          <div class="grid two">
+            <div class="card">
+              <h3>إضافة زبون</h3>
+              <form onsubmit="event.preventDefault(); addCustomer();">
+                <div class="row">
+                  <div class="field"><label>اسم الزبون</label><input id="customerName" placeholder="مثال: أحمد" required /></div>
+                  <div class="field"><label>رقم الهاتف</label><input id="customerPhone" placeholder="اختياري" /></div>
+                </div>
+                <div class="row">
+                  <div class="field"><label>دين افتتاحي</label><input id="customerOpeningDebt" type="number" min="0" step="0.01" value="0" /></div>
+                  <div class="field"><label>ملاحظة</label><input id="customerNote" placeholder="اختياري" /></div>
+                </div>
+                <button class="btn">إضافة الزبون</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>ملخص الديون</h3>
+              <div id="debtSummary" class="summary-list"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h3>قائمة الزبائن</h3>
+            <div class="table-wrap" id="customersTable"></div>
+          </div>
+        </section>
+
+        <section id="inventory" class="section">
+          <div class="grid two">
+            <div class="card">
+              <h3>إضافة كمية للمخزون</h3>
+              <form onsubmit="event.preventDefault(); addStock();">
+                <div class="row three">
+                  <div class="field"><label>الصنف</label><select id="stockItem"></select></div>
+                  <div class="field"><label>الكمية المضافة</label><input id="stockQty" type="number" min="1" step="1" placeholder="0" /></div>
+                  <div class="field"><label>ملاحظة</label><input id="stockNote" placeholder="اختياري" /></div>
+                </div>
+                <button class="btn">إضافة الكمية</button>
+              </form>
+            </div>
+            <div class="card">
+              <h3>إضافة صنف جديد</h3>
+              <form onsubmit="event.preventDefault(); addItem();">
+                <div class="row three">
+                  <div class="field"><label>اسم الصنف</label><input id="itemName" placeholder="اتركه فارغاً لو بدك صنف فاضي" /></div>
+                  <div class="field"><label>سعر البيع (شيكل)</label><input id="itemPrice" type="number" min="0" step="0.01" placeholder="0" /></div>
+                  <div class="field"><label>كمية البداية</label><input id="itemStock" type="number" min="0" step="1" placeholder="0" /></div>
+                </div>
+                <button class="btn secondary">إضافة الصنف</button>
+              </form>
+            </div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h3>المخزون والأسعار <span class="pill warn">يمكن التعديل المباشر</span></h3>
+            <div id="itemsEditor"></div>
+            <div class="table-wrap" id="inventoryTable"></div>
+          </div>
+        </section>
+
+        <section id="reports" class="section">
+          <div class="print-only"><h1>تقرير كاش توب</h1></div>
+          <div class="tabs no-print">
+            <button class="tab active" data-period="day" onclick="setReportPeriod('day')">اليوم</button>
+            <button class="tab" data-period="week" onclick="setReportPeriod('week')">الأسبوع</button>
+            <button class="tab" data-period="month" onclick="setReportPeriod('month')">الشهر</button>
+            <button class="tab" data-period="all" onclick="setReportPeriod('all')">الكل</button>
+            <button class="tab" onclick="window.print()">طباعة التقرير</button>
+          </div>
+          <div class="grid cards" id="reportStats"></div>
+          <div class="grid two" style="margin-top:16px">
+            <div class="card"><h3>الشحن حسب جهاز المصدر</h3><div class="table-wrap" id="sourceReport"></div></div>
+            <div class="card"><h3>الأداء حسب المستخدم</h3><div class="table-wrap" id="userReport"></div></div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h3>عمليات الفترة</h3>
+            <div class="table-wrap" id="periodTransactionsTable"></div>
+          </div>
+        </section>
+
+        <section id="settings" class="section">
+          <div id="managerOnlyNotice" class="alert hidden">هذه الصفحة مخصصة للمدير فقط.</div>
+          <div id="settingsContent">
+            <div class="grid two">
+              <div class="card">
+                <h3>إضافة مستخدم</h3>
+                <form onsubmit="event.preventDefault(); addUser();">
+                  <div class="row three">
+                    <div class="field"><label>الاسم</label><input id="newUserName" placeholder="اسم المستخدم" /></div>
+                    <div class="field"><label>PIN</label><input id="newUserPin" placeholder="1234" /></div>
+                    <div class="field"><label>الصلاحية</label><select id="newUserRole"><option value="user">مستخدم</option><option value="manager">مدير</option></select></div>
+                  </div>
+                  <button class="btn">إضافة المستخدم</button>
+                </form>
+              </div>
+              <div class="card">
+                <h3>أجهزة مصدر الشحن</h3>
+                <form onsubmit="event.preventDefault(); addSourcePhone();">
+                  <div class="row">
+                    <div class="field"><label>اسم الجهاز / الخط</label><input id="newSourcePhone" placeholder="مثال: جهاز الشحن 1" /></div>
+                    <div class="field"><label>&nbsp;</label><button class="btn secondary" style="width:100%">إضافة</button></div>
+                  </div>
+                </form>
+                <div id="sourcePhonesList" class="summary-list"></div>
+              </div>
+            </div>
+            <div class="grid two" style="margin-top:16px">
+              <div class="card">
+                <h3>المستخدمون</h3>
+                <div class="table-wrap" id="usersTable"></div>
+              </div>
+              <div class="card">
+                <h3>نسخ احتياطي / استعادة</h3>
+                <div class="actions">
+                  <button class="btn secondary" onclick="exportData()">تصدير JSON</button>
+                  <label class="btn secondary" style="cursor:pointer">استيراد JSON<input type="file" accept="application/json" class="hidden" onchange="importData(event)" /></label>
+                  <button class="btn danger" onclick="resetApp()">مسح كل البيانات</button>
+                </div>
+                <p class="hint">استخدم التصدير كل يوم لحفظ نسخة خارج المتصفح.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <nav class="bottom-nav" id="bottomNav"></nav>
+  </div>
+
+  <script src="app.js?v=20260710" defer></script>
+</body>
