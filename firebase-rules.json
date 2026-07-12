@@ -1,0 +1,8 @@
+{
+  "rules": {
+    "cashTopChargeApp": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

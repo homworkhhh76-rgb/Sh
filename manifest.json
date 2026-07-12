@@ -1,25 +1,15 @@
 {
   "name": "كاش توب",
   "short_name": "كاش توب",
-  "description": "تطبيق ويب لإدارة الشحن، بيع الأصناف، العملاء، الديون، والتقارير.",
+  "description": "تطبيق كاش توب لإدارة الشحن والأصناف وأرصدة الزبائن مع مزامنة Firebase والعمل بدون إنترنت.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "display_override": [
-    "window-controls-overlay",
-    "standalone",
-    "browser"
-  ],
-  "background_color": "#ff7a00",
-  "theme_color": "#ff7a00",
-  "orientation": "portrait-primary",
+  "orientation": "portrait",
   "dir": "rtl",
   "lang": "ar",
-  "categories": [
-    "business",
-    "productivity",
-    "finance"
-  ],
+  "background_color": "#fff7ed",
+  "theme_color": "#ff7a00",
   "icons": [
     {
       "src": "logo-192.png",

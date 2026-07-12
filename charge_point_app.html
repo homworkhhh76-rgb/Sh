@@ -13,7 +13,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="logo-192.png" />
   <link rel="apple-touch-icon" href="logo-192.png" />
-  <link rel="stylesheet" href="style.css?v=20260710" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -62,6 +62,11 @@
             <span class="avatar" id="userAvatar">م</span>
             <span id="currentUserText">-</span>
           </div>
+          <button class="sync-btn" id="syncBtn" onclick="syncNow()" type="button" aria-label="مزامنة البيانات">
+            <span class="sync-icon" aria-hidden="true">↻</span>
+            <span class="sync-copy"><strong id="syncStatusText">محلي</strong><small id="syncStatusSub">جاهز</small></span>
+            <span class="sync-count hidden" id="syncPendingCount">0</span>
+          </button>
           <button class="btn secondary small hidden" id="installAppBtn" onclick="installApp()">تثبيت التطبيق</button>
           <button class="btn secondary small" onclick="logout()">خروج</button>
         </div>
@@ -84,7 +89,7 @@
 
         <section id="operations" class="section">
           <div class="drawer-note">
-            اختر العملية من البطاقات. اختيار الزبون صار بالكتابة مع اقتراحات مباشرة، وأي زبون عليه دين يظهر باللون الأحمر.
+            اختر العملية من البطاقات. اختيار الزبون بالكتابة مع اقتراحات مباشرة. المديونية تظهر بالأحمر، والرصيد الموجب يظهر بالأخضر. العمليات تحفظ محلياً ثم تتزامن مع Firebase.
           </div>
           <div class="operation-choice">
             <button class="choice" onclick="openOperationModal('charge')">
@@ -97,15 +102,17 @@
             </button>
           </div>
 
-          <div class="card stable-card" style="margin-top:16px">
-            <h3><span class="title-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 8.5h16M7 13h4M7 17h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/></svg></span> تسديد دين</h3>
+          <div class="card stable-card payment-card" style="margin-top:16px">
+            <h3><span class="title-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M4 8.5h16M7 13h4M7 17h2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><rect x="3" y="5" width="18" height="14" rx="3" stroke="currentColor" stroke-width="1.8"/></svg></span> دفعة / ترصيد حساب</h3>
             <form onsubmit="event.preventDefault(); addPayment();">
-              <div class="row three">
+              <div class="row four">
                 <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="paymentCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="paymentCustomer" type="hidden" /><div class="combo-menu" id="paymentCustomerMenu"></div></div></div>
-                <div class="field"><label>قيمة التسديد (شيكل)</label><input id="paymentAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
+                <div class="field"><label>قيمة الدفعة (شيكل)</label><input id="paymentAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
+                <div class="field"><label>طريقة الدفع</label><select id="paymentMethod"><option value="">اختر الطريقة</option><option value="bank">بنك</option><option value="wallet">محفظة</option><option value="jawwal_pay">جوال بي</option></select></div>
                 <div class="field"><label>ملاحظة</label><input id="paymentNote" placeholder="اختياري" /></div>
               </div>
-              <button class="btn secondary">تسجيل تسديد الدين</button>
+              <div class="balance-explainer">يمكن تسجيل دفعة أكبر من المديونية؛ الفرق يتحول تلقائياً إلى رصيد موجب للزبون.</div>
+              <button class="btn secondary">تسجيل الدفعة وترصيد الحساب</button>
             </form>
           </div>
 
@@ -129,10 +136,11 @@
                     <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="chargeCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="chargeCustomer" type="hidden" /><div class="combo-menu" id="chargeCustomerMenu"></div></div></div>
                     <div class="field"><label>من أي جهاز خرجت الشحنة؟</label><select id="chargeSourcePhone"></select></div>
                   </div>
-                  <div class="row three">
+                  <div class="row four">
                     <div class="field"><label>نوع الجهاز المشحون</label><input id="chargeTargetPhone" placeholder="اختياري، مثال: iPhone / Samsung" /></div>
-                    <div class="field"><label>قيمة الشحنة (شيكل)</label><input id="chargeAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
-                    <div class="field"><label>المدفوع الآن (شيكل)</label><input id="chargePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = دفع كامل" /></div>
+                    <div class="field"><label>قيمة الشحنة (شيكل)</label><input id="chargeAmount" type="number" min="0" step="0.01" placeholder="0" oninput="refreshPayShortcuts('charge')" /></div>
+                    <div class="field"><label>المدفوع الآن (شيكل)</label><input id="chargePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = لم يدفع" /><div class="quick-pay"><button type="button" onclick="setPaidZero('charge')">لم يدفع</button><button type="button" onclick="setPaidFull('charge')">دفع كامل</button></div></div>
+                    <div class="field"><label>طريقة الدفع</label><select id="chargePaymentMethod"><option value="">اختر الطريقة</option><option value="bank">بنك</option><option value="wallet">محفظة</option><option value="jawwal_pay">جوال بي</option></select></div>
                   </div>
                   <div class="field"><label>ملاحظة</label><input id="chargeNote" placeholder="اختياري" /></div>
                   <button class="btn">حفظ عملية الشحن</button>
@@ -146,10 +154,11 @@
                     <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="saleCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="saleCustomer" type="hidden" /><div class="combo-menu" id="saleCustomerMenu"></div></div></div>
                     <div class="field"><label>الصنف</label><select id="saleItem" onchange="fillItemPrice()"></select></div>
                   </div>
-                  <div class="row three">
-                    <div class="field"><label>الكمية</label><input id="saleQty" type="number" min="1" step="1" value="1" /></div>
-                    <div class="field"><label>سعر الوحدة (شيكل)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" placeholder="0" /></div>
-                    <div class="field"><label>المدفوع الآن (شيكل)</label><input id="salePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = دفع كامل" /></div>
+                  <div class="row four">
+                    <div class="field"><label>الكمية</label><input id="saleQty" type="number" min="1" step="1" value="1" oninput="refreshPayShortcuts('sale')" /></div>
+                    <div class="field"><label>سعر الوحدة (شيكل)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" placeholder="0" oninput="refreshPayShortcuts('sale')" /></div>
+                    <div class="field"><label>المدفوع الآن (شيكل)</label><input id="salePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = لم يدفع" /><div class="quick-pay"><button type="button" onclick="setPaidZero('sale')">لم يدفع</button><button type="button" onclick="setPaidFull('sale')">دفع كامل</button></div></div>
+                    <div class="field"><label>طريقة الدفع</label><select id="salePaymentMethod"><option value="">اختر الطريقة</option><option value="bank">بنك</option><option value="wallet">محفظة</option><option value="jawwal_pay">جوال بي</option></select></div>
                   </div>
                   <div class="field"><label>ملاحظة</label><input id="saleNote" placeholder="اختياري" /></div>
                   <button class="btn">حفظ عملية بيع الصنف وإنقاص المخزون</button>
@@ -228,8 +237,9 @@
             <button class="tab" onclick="window.print()">طباعة التقرير</button>
           </div>
           <div class="grid cards" id="reportStats"></div>
-          <div class="grid two" style="margin-top:16px">
+          <div class="grid three" style="margin-top:16px">
             <div class="card"><h3>الشحن حسب جهاز المصدر</h3><div class="table-wrap" id="sourceReport"></div></div>
+            <div class="card"><h3>الحوالات حسب طريقة الدفع</h3><div class="table-wrap" id="paymentMethodReport"></div></div>
             <div class="card"><h3>الأداء حسب المستخدم</h3><div class="table-wrap" id="userReport"></div></div>
           </div>
           <div class="card" style="margin-top:16px">
@@ -239,18 +249,51 @@
         </section>
 
         <section id="settings" class="section">
-          <div id="managerOnlyNotice" class="alert hidden">هذه الصفحة مخصصة للمدير فقط.</div>
+          <div class="grid two">
+            <div class="card">
+              <h3>أمان الحساب</h3>
+              <p class="hint">المستخدم الحالي: <strong id="settingsCurrentUser">-</strong>. تغيير PIN يُحفظ محلياً ويُضاف إلى قائمة المزامنة.</p>
+              <form onsubmit="event.preventDefault(); changeCurrentPin();">
+                <div class="row three">
+                  <div class="field"><label>PIN الحالي</label><input id="currentPin" type="password" inputmode="numeric" autocomplete="current-password" /></div>
+                  <div class="field"><label>PIN الجديد</label><input id="newCurrentPin" type="password" inputmode="numeric" autocomplete="new-password" /></div>
+                  <div class="field"><label>تأكيد PIN</label><input id="confirmCurrentPin" type="password" inputmode="numeric" autocomplete="new-password" /></div>
+                </div>
+                <button class="btn">تغيير كلمة المرور</button>
+              </form>
+            </div>
+            <div class="card sync-settings-card">
+              <h3>المزامنة والنسخة المحلية</h3>
+              <div class="sync-overview">
+                <div><span>الحالة</span><strong id="settingsSyncStatus">محلي</strong></div>
+                <div><span>التغييرات المعلقة</span><strong id="settingsPendingCount">0</strong></div>
+                <div><span>آخر مزامنة</span><strong id="settingsLastSync">لم تتم بعد</strong></div>
+              </div>
+              <div class="actions"><button class="btn secondary" onclick="syncNow()">مزامنة الآن</button></div>
+              <p class="hint">يستمر التطبيق بالعمل بدون إنترنت. كل تغيير يبقى معلقاً محلياً إلى أن تنجح مزامنته مع Firebase.</p>
+            </div>
+          </div>
+
+          <div id="managerOnlyNotice" class="alert hidden">إعدادات الإدارة والحذف متاحة للمدير فقط.</div>
           <div id="settingsContent">
-            <div class="grid two">
+            <div class="grid two" style="margin-top:16px">
               <div class="card">
-                <h3>إضافة مستخدم</h3>
+                <h3>إدارة المستخدمين</h3>
                 <form onsubmit="event.preventDefault(); addUser();">
                   <div class="row three">
                     <div class="field"><label>الاسم</label><input id="newUserName" placeholder="اسم المستخدم" /></div>
-                    <div class="field"><label>PIN</label><input id="newUserPin" placeholder="1234" /></div>
+                    <div class="field"><label>PIN</label><input id="newUserPin" type="password" inputmode="numeric" placeholder="1234" /></div>
                     <div class="field"><label>الصلاحية</label><select id="newUserRole"><option value="user">مستخدم</option><option value="manager">مدير</option></select></div>
                   </div>
                   <button class="btn">إضافة المستخدم</button>
+                </form>
+                <hr class="soft-separator" />
+                <form onsubmit="event.preventDefault(); managerChangePin();">
+                  <div class="row">
+                    <div class="field"><label>المستخدم</label><select id="managerPinUser"></select></div>
+                    <div class="field"><label>PIN الجديد</label><input id="managerNewPin" type="password" inputmode="numeric" placeholder="PIN جديد" /></div>
+                  </div>
+                  <button class="btn secondary">تغيير PIN للمستخدم</button>
                 </form>
               </div>
               <div class="card">
@@ -276,7 +319,7 @@
                   <label class="btn secondary" style="cursor:pointer">استيراد JSON<input type="file" accept="application/json" class="hidden" onchange="importData(event)" /></label>
                   <button class="btn danger" onclick="resetApp()">مسح كل البيانات</button>
                 </div>
-                <p class="hint">استخدم التصدير كل يوم لحفظ نسخة خارج المتصفح.</p>
+                <p class="hint">المزامنة لا تغني عن نسخة JSON دورية خارج الجهاز.</p>
               </div>
             </div>
           </div>
@@ -287,5 +330,7 @@
     <nav class="bottom-nav" id="bottomNav"></nav>
   </div>
 
-  <script src="app.js?v=20260710" defer></script>
+  <script src="firebase-config.js" defer></script>
+  <script src="sync.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
