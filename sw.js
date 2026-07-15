@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cash-top-v7-20260712';
+const CACHE_NAME = 'cash-top-v8-20260714';
 const APP_SHELL = [
   './',
   './index.html',

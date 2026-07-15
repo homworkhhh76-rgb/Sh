@@ -96,6 +96,8 @@
     merged.items=mergeById(local.items,remote.items);
     merged.transactions=mergeById(local.transactions,remote.transactions)
       .sort((a,b)=>ts(b.timestamp)-ts(a.timestamp));
+    merged.expenses=mergeById(local.expenses,remote.expenses)
+      .sort((a,b)=>ts(b.timestamp)-ts(a.timestamp));
     const localSourceTs=ts(local.meta?.sourcePhonesUpdatedAt);
     const remoteSourceTs=ts(remote.meta?.sourcePhonesUpdatedAt);
     if(localSourceTs===remoteSourceTs){
@@ -112,7 +114,7 @@
       sourcePhonesUpdatedAt: localSourceTs>=remoteSourceTs
         ? (local.meta?.sourcePhonesUpdatedAt || merged.createdAt)
         : (remote.meta?.sourcePhonesUpdatedAt || merged.createdAt),
-      schemaVersion:3,
+      schemaVersion:4,
       lastSyncedBy:deviceId()
     };
     return merged;

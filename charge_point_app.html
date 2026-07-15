@@ -91,6 +91,25 @@
           <div class="drawer-note">
             اختر العملية من البطاقات. اختيار الزبون بالكتابة مع اقتراحات مباشرة. المديونية تظهر بالأحمر، والرصيد الموجب يظهر بالأخضر. العمليات تحفظ محلياً ثم تتزامن مع Firebase.
           </div>
+          <div class="card unified-invoice-card">
+            <div class="section-title-row"><div><h3>فاتورة / معاملة واحدة</h3><p class="hint">اختر الزبون أولًا، ثم أضف الشحن والأصناف داخل الفاتورة نفسها.</p></div><strong id="invoiceTotal" class="invoice-total">0.00 شيكل</strong></div>
+            <form onsubmit="event.preventDefault(); saveUnifiedInvoice();">
+              <div class="row three">
+                <div class="field combo-field"><label>الزبون</label><div class="combo"><input id="invoiceCustomerText" class="combo-input" placeholder="اكتب اسم الزبون أو اختره..." autocomplete="off" /><input id="invoiceCustomer" type="hidden" /><div class="combo-menu" id="invoiceCustomerMenu"></div></div></div>
+                <div class="field"><label>طريقة الدفع</label><select id="invoicePaymentMethod" onchange="invoicePaymentChanged()"><option value="">اختر الطريقة</option><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="jawwal_pay">Jawwal Pay</option><option value="debt">دين</option></select></div>
+                <div class="field"><label>المدفوع الآن</label><input id="invoicePaid" type="number" min="0" step="0.01" placeholder="يُملأ تلقائيًا" /></div>
+              </div>
+              <div class="invoice-builders">
+                <div class="invoice-builder"><h4>إضافة شحن جوال</h4><div class="row three"><div class="field"><label>جهاز المصدر</label><select id="invoiceChargeSource"></select></div><div class="field"><label>الجهاز / الرقم المشحون</label><input id="invoiceChargeTarget" placeholder="اختياري" /></div><div class="field"><label>قيمة الشحن</label><input id="invoiceChargeAmount" type="number" min="0" step="0.01" placeholder="0" /></div></div><button type="button" class="btn secondary small" onclick="addInvoiceChargeLine()">إضافة الشحن للفاتورة</button></div>
+                <div class="invoice-builder"><h4>إضافة عصير أو صنف</h4><div class="row three"><div class="field"><label>الصنف</label><select id="invoiceSaleItem" onchange="delete document.getElementById('invoiceSalePrice').dataset.manual; fillInvoiceItemPrice()"></select></div><div class="field"><label>الكمية</label><input id="invoiceSaleQty" type="number" min="1" step="1" value="1" /></div><div class="field"><label>سعر الوحدة</label><input id="invoiceSalePrice" type="number" min="0" step="0.01" /></div></div><button type="button" class="btn secondary small" onclick="addInvoiceSaleLine()">إضافة الصنف للفاتورة</button></div>
+              </div>
+              <div class="table-wrap invoice-draft" id="invoiceDraftList"></div>
+              <div class="field"><label>ملاحظات المعاملة / اسم صاحب الحوالة</label><input id="invoiceNote" placeholder="مثال: الحوالة باسم محمد" /></div>
+              <button class="btn">حفظ الفاتورة كمعاملة واحدة</button>
+            </form>
+          </div>
+
+          <h3 class="subsection-heading">عمليات سريعة منفصلة (للتوافق مع النظام السابق)</h3>
           <div class="operation-choice">
             <button class="choice" onclick="openOperationModal('charge')">
               <span class="choice-head"><span class="choice-icon"><svg viewBox="0 0 24 24" fill="none"><path d="M8 2.75h8A2.25 2.25 0 0 1 18.25 5v14A2.25 2.25 0 0 1 16 21.25H8A2.25 2.25 0 0 1 5.75 19V5A2.25 2.25 0 0 1 8 2.75Z" stroke="currentColor" stroke-width="1.8"/><path d="M10 18h4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M12 7.25 9.9 12h3.1L12 16.75 15.9 10h-3.1L12 7.25Z" fill="currentColor"/></svg></span><strong>شحن جديد</strong></span>
@@ -108,7 +127,7 @@
               <div class="row four">
                 <div class="field combo-field"><label>اسم الزبون</label><div class="combo"><input id="paymentCustomerText" class="combo-input" placeholder="اكتب اسم الزبون..." autocomplete="off" /><input id="paymentCustomer" type="hidden" /><div class="combo-menu" id="paymentCustomerMenu"></div></div></div>
                 <div class="field"><label>قيمة الدفعة (شيكل)</label><input id="paymentAmount" type="number" min="0" step="0.01" placeholder="0" /></div>
-                <div class="field"><label>طريقة الدفع</label><select id="paymentMethod"><option value="">اختر الطريقة</option><option value="bank">بنك</option><option value="wallet">محفظة</option><option value="jawwal_pay">جوال بي</option></select></div>
+                <div class="field"><label>طريقة الدفع</label><select id="paymentMethod"><option value="">اختر الطريقة</option><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="jawwal_pay">Jawwal Pay</option></select></div>
                 <div class="field"><label>ملاحظة</label><input id="paymentNote" placeholder="اختياري" /></div>
               </div>
               <div class="balance-explainer">يمكن تسجيل دفعة أكبر من المديونية؛ الفرق يتحول تلقائياً إلى رصيد موجب للزبون.</div>
@@ -140,7 +159,7 @@
                     <div class="field"><label>نوع الجهاز المشحون</label><input id="chargeTargetPhone" placeholder="اختياري، مثال: iPhone / Samsung" /></div>
                     <div class="field"><label>قيمة الشحنة (شيكل)</label><input id="chargeAmount" type="number" min="0" step="0.01" placeholder="0" oninput="refreshPayShortcuts('charge')" /></div>
                     <div class="field"><label>المدفوع الآن (شيكل)</label><input id="chargePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = لم يدفع" /><div class="quick-pay"><button type="button" onclick="setPaidZero('charge')">لم يدفع</button><button type="button" onclick="setPaidFull('charge')">دفع كامل</button></div></div>
-                    <div class="field"><label>طريقة الدفع</label><select id="chargePaymentMethod"><option value="">اختر الطريقة</option><option value="bank">بنك</option><option value="wallet">محفظة</option><option value="jawwal_pay">جوال بي</option></select></div>
+                    <div class="field"><label>طريقة الدفع</label><select id="chargePaymentMethod"><option value="">اختر الطريقة</option><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="jawwal_pay">Jawwal Pay</option><option value="debt">دين</option></select></div>
                   </div>
                   <div class="field"><label>ملاحظة</label><input id="chargeNote" placeholder="اختياري" /></div>
                   <button class="btn">حفظ عملية الشحن</button>
@@ -158,7 +177,7 @@
                     <div class="field"><label>الكمية</label><input id="saleQty" type="number" min="1" step="1" value="1" oninput="refreshPayShortcuts('sale')" /></div>
                     <div class="field"><label>سعر الوحدة (شيكل)</label><input id="saleUnitPrice" type="number" min="0" step="0.01" placeholder="0" oninput="refreshPayShortcuts('sale')" /></div>
                     <div class="field"><label>المدفوع الآن (شيكل)</label><input id="salePaid" type="number" min="0" step="0.01" placeholder="اتركه فارغاً = لم يدفع" /><div class="quick-pay"><button type="button" onclick="setPaidZero('sale')">لم يدفع</button><button type="button" onclick="setPaidFull('sale')">دفع كامل</button></div></div>
-                    <div class="field"><label>طريقة الدفع</label><select id="salePaymentMethod"><option value="">اختر الطريقة</option><option value="bank">بنك</option><option value="wallet">محفظة</option><option value="jawwal_pay">جوال بي</option></select></div>
+                    <div class="field"><label>طريقة الدفع</label><select id="salePaymentMethod"><option value="">اختر الطريقة</option><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="jawwal_pay">Jawwal Pay</option><option value="debt">دين</option></select></div>
                   </div>
                   <div class="field"><label>ملاحظة</label><input id="saleNote" placeholder="اختياري" /></div>
                   <button class="btn">حفظ عملية بيع الصنف وإنقاص المخزون</button>
@@ -195,6 +214,15 @@
           </div>
         </section>
 
+
+        <div class="modal hidden" id="customerProfileModal" onclick="closeCustomerProfile(event)">
+          <div class="modal-panel customer-profile-panel" onclick="event.stopPropagation()">
+            <div class="modal-head"><div><h3 id="customerProfileTitle">ملف الزبون</h3><p>جميع عمليات الشحن والشراء والديون والدفعات.</p></div><div class="actions" style="margin:0"><button class="btn secondary small" onclick="printCustomerReport()">استخراج / طباعة التقرير</button><button class="icon-btn" onclick="closeCustomerProfile()">×</button></div></div>
+            <div id="customerProfileInfo"></div>
+            <div class="table-wrap" id="customerProfileTransactions"></div>
+          </div>
+        </div>
+
         <section id="inventory" class="section">
           <div class="grid two">
             <div class="card">
@@ -227,6 +255,15 @@
           </div>
         </section>
 
+
+        <section id="expenses" class="section">
+          <div class="grid two">
+            <div class="card"><h3>إضافة مصروف</h3><form onsubmit="event.preventDefault(); addExpense();"><div class="row"><div class="field"><label>نوع المصروف</label><input id="expenseCategory" placeholder="مثال: شراء بكيتات أو عصير" /></div><div class="field"><label>القيمة</label><input id="expenseAmount" type="number" min="0" step="0.01" placeholder="0" /></div></div><div class="row"><div class="field"><label>طريقة الدفع</label><select id="expensePaymentMethod"><option value="cash">نقدي</option><option value="bank">تحويل بنكي</option><option value="jawwal_pay">Jawwal Pay</option></select></div><div class="field"><label>ملاحظة</label><input id="expenseNote" placeholder="اختياري" /></div></div><button class="btn">حفظ المصروف</button></form></div>
+            <div class="card"><h3>إجمالي المصاريف</h3><div class="expense-total" id="expensesTotal">0.00 شيكل</div><p class="hint">تظهر المصاريف أيضًا داخل تقرير اليوم والأسبوع والشهر.</p></div>
+          </div>
+          <div class="card" style="margin-top:16px"><h3>سجل المصاريف</h3><div class="table-wrap" id="expensesTable"></div></div>
+        </section>
+
         <section id="reports" class="section">
           <div class="print-only"><h1>تقرير كاش توب</h1></div>
           <div class="tabs no-print">
@@ -245,6 +282,10 @@
           <div class="card" style="margin-top:16px">
             <h3>عمليات الفترة</h3>
             <div class="table-wrap" id="periodTransactionsTable"></div>
+          </div>
+          <div class="card" style="margin-top:16px">
+            <h3>مصاريف الفترة</h3>
+            <div class="table-wrap" id="periodExpensesTable"></div>
           </div>
         </section>
 
