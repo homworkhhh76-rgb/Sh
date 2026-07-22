@@ -1,4 +1,4 @@
-const VERSION = 'juice-pos-v7-cashtop-rest';
+const VERSION = 'juice-pos-v8-users-permissions';
 const CORE_CACHE = `${VERSION}-core`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const ALL_CACHES = [CORE_CACHE, RUNTIME_CACHE];
