@@ -1,0 +1,14 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // هذا التطبيق لا يستخدم Firebase Authentication حالياً.
+    // لذلك القراءة والكتابة متاحة فقط داخل مساحة بيانات التطبيق.
+    // عند إضافة Firebase Auth لاحقاً، استبدل true بشرط مصادقة وصلاحيات مناسب.
+    match /juicePOSData/{tenantId} {
+      allow read, write: if true;
+      match /{document=**} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

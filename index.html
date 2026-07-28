@@ -194,7 +194,7 @@
             <p id="pwa-install-status" class="text-sm text-gray-600 mb-3">يمكن تثبيت النظام كتطبيق من Chrome بعد رفع الملفات على رابط HTTPS.</p>
             <button id="pwa-install-btn" class="w-full bg-indigo-600 text-white p-3 rounded-xl font-bold"><i class="fa-solid fa-download ml-2"></i>تثبيت التطبيق على الجهاز</button>
           </div>
-          <div class="bg-white rounded-2xl border p-5"><h3 class="font-bold text-lg mb-2">حالة Firebase والمزامنة</h3><p id="firebase-status" class="text-sm text-gray-600 mb-3"></p><div class="grid grid-cols-2 gap-2"><button id="sync-now-btn" class="bg-indigo-600 text-white p-2.5 rounded-xl font-bold"><i class="fa-solid fa-rotate ml-1"></i>مزامنة الآن</button><button id="refresh-cache-btn" class="bg-slate-700 text-white p-2.5 rounded-xl font-bold"><i class="fa-solid fa-bolt ml-1"></i>تحديث الكاش</button></div></div>
+          <div class="bg-white rounded-2xl border p-5"><h3 class="font-bold text-lg mb-2">حالة Firestore والمزامنة</h3><p id="firebase-status" class="text-sm text-gray-600 mb-3"></p><div class="grid grid-cols-2 gap-2"><button id="sync-now-btn" class="bg-indigo-600 text-white p-2.5 rounded-xl font-bold"><i class="fa-solid fa-rotate ml-1"></i>مزامنة الآن</button><button id="refresh-cache-btn" class="bg-slate-700 text-white p-2.5 rounded-xl font-bold"><i class="fa-solid fa-bolt ml-1"></i>تحديث الكاش</button></div></div>
         </section>
       </div>
     </main>
@@ -205,7 +205,7 @@
   <div id="print-root" class="fixed -left-[9999px] top-0"></div>
 
 <script type="module">
-import { firebaseConfig, DEFAULT_ADMIN_PASSWORD, CASH_TOP_SYNC } from './firebase-config.js';
+import { firebaseConfig, DEFAULT_ADMIN_PASSWORD, FIRESTORE_SYNC } from './firebase-config.js';
 
 const $ = (id) => document.getElementById(id);
 const money = (n) => `${Number(n||0).toFixed(2)} ${state.settings.currency || '₪'}`;
@@ -228,8 +228,54 @@ let syncFlushRunning = false;
 let syncPullRunning = false;
 let syncRetryTimer = null;
 let lastCloudPullMs = 0;
-const DB_PROXY = String(firebaseConfig.databaseURL || '').replace(/\/$/, '');
-const CLOUD_ROOT = `companies/${CASH_TOP_SYNC.companyKey}/branchesData/${CASH_TOP_SYNC.branchId}/data/${CASH_TOP_SYNC.appNode}`;
+const FIREBASE_SDK_VERSION = '12.16.0';
+let firestoreDb = null;
+let firestoreApi = null;
+let firestoreInitPromise = null;
+const FIRESTORE_COLLECTIONS = ['users','inventory','customers','transactions','expenses','settlements','inventoryMovements','settings'];
+
+async function ensureFirestore(){
+  if(firestoreDb && firestoreApi) return firestoreDb;
+  if(firestoreInitPromise) return firestoreInitPromise;
+  firestoreInitPromise = (async()=>{
+    const [appSdk, fsSdk] = await withTimeout(Promise.all([
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-app.js`),
+      import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-firestore-lite.js`)
+    ]), 9000, 'FIREBASE_SDK_TIMEOUT');
+    const app = appSdk.initializeApp(firebaseConfig);
+    firestoreApi = fsSdk;
+    firestoreDb = fsSdk.getFirestore(app);
+    return firestoreDb;
+  })().catch(err=>{firestoreInitPromise=null;throw err});
+  return firestoreInitPromise;
+}
+function firestoreDocRef(collectionName,id){
+  return firestoreApi.doc(firestoreDb, FIRESTORE_SYNC.rootCollection, FIRESTORE_SYNC.tenantId, collectionName, String(id));
+}
+function firestoreCollectionRef(collectionName){
+  return firestoreApi.collection(firestoreDb, FIRESTORE_SYNC.rootCollection, FIRESTORE_SYNC.tenantId, collectionName);
+}
+async function firestoreGetCollection(collectionName,timeoutMs=8000){
+  await ensureFirestore();
+  const snap=await withTimeout(firestoreApi.getDocs(firestoreCollectionRef(collectionName)),timeoutMs,'FIRESTORE_TIMEOUT');
+  return snap.docs.map(d=>({id:d.id,...cleanPlain(d.data())}));
+}
+async function firestoreGetRecord(collectionName,id,timeoutMs=6500){
+  await ensureFirestore();
+  const snap=await withTimeout(firestoreApi.getDoc(firestoreDocRef(collectionName,id)),timeoutMs,'FIRESTORE_TIMEOUT');
+  return snap.exists()?{id:snap.id,...cleanPlain(snap.data())}:null;
+}
+async function pullFirestoreRoot(timeoutMs=9000){
+  await ensureFirestore();
+  const names=FIRESTORE_COLLECTIONS;
+  const values=await withTimeout(Promise.all(names.map(async name=>[name,await firestoreGetCollection(name,timeoutMs)])),timeoutMs+1500,'FIRESTORE_TIMEOUT');
+  const root={};
+  for(const [name,rows] of values){
+    root[name]={};
+    for(const row of rows) root[name][String(row.id)]={...row};
+  }
+  return root;
+}
 const PASSWORD_CACHE_KEY = 'pos_admin_password_hash_v3';
 const PASSWORD_PENDING_KEY = 'pos_admin_password_hash_pending_v3';
 const PASSWORD_CUSTOM_KEY = 'pos_admin_password_custom_v3';
@@ -239,7 +285,7 @@ const USER_SESSION_KEY = 'pos_user_session_v8';
 let syncQueue = [];
 
 function cleanPlain(value){
-  if(Array.isArray(value)) return value.map(cleanPlain);
+  if(Array.isArray(value)) return value.filter(v=>v!==undefined).map(cleanPlain);
   if(value && typeof value==='object'){
     const out={};
     for(const [k,v] of Object.entries(value)) if(v!==undefined && typeof v!=='function') out[k]=cleanPlain(v);
@@ -289,53 +335,34 @@ function enqueueSync(label,ops){
   setSyncState(`محفوظ على الجهاز — بانتظار مزامنة ${syncQueue.length}`,'info');
   clearTimeout(syncRetryTimer);syncRetryTimer=setTimeout(flushSyncQueue,80);
 }
-function apiUrl(path){
-  if(!DB_PROXY) throw new Error('DATABASE_URL_MISSING');
-  return `${DB_PROXY}?path=${encodeURIComponent(String(path||'').replace(/^\/+|\/+$/g,''))}`;
-}
-async function apiRequest(method,path,data,timeoutMs=7000){
-  const controller=new AbortController();
-  const timer=setTimeout(()=>controller.abort(),timeoutMs);
-  try{
-    const options={method,cache:'no-store',signal:controller.signal,headers:{'Accept':'application/json'}};
-    if(data!==undefined){options.headers['Content-Type']='application/json';options.body=JSON.stringify(cleanPlain(data));}
-    const res=await fetch(apiUrl(path),options);
-    const text=await res.text();
-    let body=null;
-    if(text){try{body=JSON.parse(text)}catch(_){body=text}}
-    if(!res.ok){const err=new Error(`DB_${method}_${res.status}`);err.status=res.status;err.details=body;throw err;}
-    if(body && typeof body==='object' && 'data' in body && (body.success===true || body.ok===true)) return body.data;
-    return body;
-  }catch(e){
-    if(e?.name==='AbortError') throw new Error('DB_TIMEOUT');
-    throw e;
-  }finally{clearTimeout(timer)}
-}
-const apiGet=(path,timeoutMs=7000)=>apiRequest('GET',path,undefined,timeoutMs);
-const apiPut=(path,data,timeoutMs=7000)=>apiRequest('PUT',path,data,timeoutMs);
-const apiDelete=(path,timeoutMs=7000)=>apiRequest('DELETE',path,undefined,timeoutMs);
-function cloudRecordPath(collectionName,id){return `${CLOUD_ROOT}/${collectionName}/${id}`;}
-
 async function flushSyncQueue(){
   if(syncFlushRunning||!configReady||!syncQueue.length)return;
   if(navigator.onLine===false){setSyncState(`بدون إنترنت — ${syncQueue.length} عملية محفوظة محلياً`,'info');return;}
   syncFlushRunning=true;
   try{
+    await ensureFirestore();
     while(syncQueue.length){
       const group=syncQueue[0];
-      setSyncState(`جاري رفع ${syncQueue.length} عملية`,'info');
-      for(const op of group.ops){
-        const path=cloudRecordPath(op.collection,op.id);
-        if(op.action==='delete') await apiDelete(path,7000);
-        else await apiPut(path,{...cleanPlain(op.data||{}),syncedAtMs:nowMs()},7000);
+      setSyncState(`جاري رفع ${syncQueue.length} عملية إلى Firestore`,'info');
+      const ops=Array.isArray(group.ops)?group.ops:[];
+      // Firestore يسمح حتى 500 كتابة في الدفعة؛ نستخدم 400 كهامش آمن.
+      for(let offset=0; offset<ops.length; offset+=400){
+        const part=ops.slice(offset,offset+400);
+        const batch=firestoreApi.writeBatch(firestoreDb);
+        for(const op of part){
+          const ref=firestoreDocRef(op.collection,op.id);
+          if(op.action==='delete') batch.delete(ref);
+          else batch.set(ref,{...cleanPlain(op.data||{}),syncedAtMs:nowMs()},{merge:op.merge===true});
+        }
+        await withTimeout(batch.commit(),8500,'FIRESTORE_TIMEOUT');
       }
       syncQueue.shift();persistSyncQueue();
     }
     firebaseConnected=true;
-    setSyncState('متصل ومتزامن','ok');
+    setSyncState('متصل ومتزامن مع Firestore','ok');
   }catch(e){
     firebaseConnected=false;
-    console.warn('Background sync paused',e);
+    console.warn('Firestore background sync paused',e);
     setSyncState(`الحفظ المحلي يعمل — تعذر الرفع (${syncQueue.length})`,'error');
     clearTimeout(syncRetryTimer);syncRetryTimer=setTimeout(()=>syncCycle(false),12000);
   }finally{syncFlushRunning=false}
@@ -350,9 +377,9 @@ function localCommit(label,ops,mutate,message='تم الحفظ'){
 loadLocalData();
 persistLocalData();
 
-const configReady = Boolean(DB_PROXY && CASH_TOP_SYNC?.companyKey && CASH_TOP_SYNC?.branchId && CASH_TOP_SYNC?.appNode);
+const configReady = Boolean(firebaseConfig?.apiKey && firebaseConfig?.projectId && FIRESTORE_SYNC?.rootCollection && FIRESTORE_SYNC?.tenantId);
 if(configReady){
-  $('firebase-status').textContent = `مزامنة كاش توب جاهزة — ${firebaseConfig.projectId} — حفظ محلي فوري`;
+  $('firebase-status').textContent = `Cloud Firestore جاهز — ${firebaseConfig.projectId} — حفظ محلي فوري`;
   try{
     const savedSession=JSON.parse(sessionStorage.getItem(USER_SESSION_KEY)||'null');
     if(savedSession?.username) openAppSession(savedSession);
@@ -361,7 +388,7 @@ if(configReady){
   preloadUsersFromCloud().catch(()=>{});
 } else {
   $('login-error').classList.remove('hidden');
-  $('login-error').innerHTML = 'إعدادات المزامنة غير مكتملة. سيعمل النظام محلياً حتى ضبط firebase-config.js.';
+  $('login-error').innerHTML = 'إعدادات Firestore غير مكتملة. سيعمل النظام محلياً حتى ضبط firebase-config.js.';
   $('firebase-status').textContent = 'المزامنة غير مضبوطة — الحفظ المحلي يعمل.';
 }
 
@@ -401,10 +428,13 @@ async function verifySystemPassword(password){
 async function syncPasswordHashFromFirebase(remoteRoot=null){
   if(!configReady || localStorage.getItem(PASSWORD_PENDING_KEY) || pendingKeys().has('settings/security')) return;
   try{
-    const security=remoteRoot?.settings?.security || await apiGet(`${CLOUD_ROOT}/settings/security`,4000);
+    const security=remoteRoot?.settings?.security || await firestoreGetRecord('settings','security',5000);
     if(security?.passwordHash && security.customPasswordEnabled===true){
       localStorage.setItem(PASSWORD_CACHE_KEY,String(security.passwordHash));
       localStorage.setItem(PASSWORD_CUSTOM_KEY,'1');
+    }else if(!security && localStorage.getItem(PASSWORD_CUSTOM_KEY)==='1'){
+      const localHash=localStorage.getItem(PASSWORD_CACHE_KEY);
+      if(localHash && !pendingKeys().has('settings/security')) enqueueSync('ترحيل كلمة مرور المدير إلى Firestore',[{action:'set',collection:'settings',id:'security',merge:true,data:{passwordHash:localHash,customPasswordEnabled:true,updatedAtMs:nowMs()}}]);
     }
   }catch(e){ console.warn('Password sync skipped:',e?.message||e); }
 }
@@ -418,7 +448,7 @@ function setSyncState(text,kind='info'){
   const el=$('sync-state'); if(!el)return;
   const icon=kind==='ok'?'fa-cloud-arrow-up':kind==='error'?'fa-triangle-exclamation':'fa-rotate fa-spin';
   el.innerHTML=`<i class="fa-solid ${icon} ml-1"></i>${text}`;
-  $('firebase-status').textContent = `${text} — قاعدة كاش توب: ${firebaseConfig.projectId}`;
+  $('firebase-status').textContent = `${text} — Firestore: ${firebaseConfig.projectId}`;
 }
 
 const PERMISSION_DEFS=[
@@ -464,8 +494,7 @@ function applyPermissions(){
 async function preloadUsersFromCloud(){
   if(!configReady||navigator.onLine===false)return state.users;
   try{
-    const remote=await apiGet(`${CLOUD_ROOT}/users`,4000);
-    const rows=objectRecords(remote);
+    const rows=await firestoreGetCollection('users',6000);
     if(rows.length){
       const pending=pendingKeys(),localMap=new Map(state.users.map(u=>[String(u.id),u]));
       for(const r of rows){const key=`users/${r.id}`;if(!pending.has(key))localMap.set(String(r.id),{...r,id:String(r.id)});}
@@ -508,7 +537,7 @@ function openAppSession(user={id:'admin',username:'admin',name:'المدير',ro
 function startFirebaseSync(){
   if(!configReady || firebaseBootStarted)return;
   firebaseBootStarted=true;
-  setSyncState(syncQueue.length?`محفوظ محلياً — بانتظار رفع ${syncQueue.length}`:'جاري الاتصال بقاعدة كاش توب','info');
+  setSyncState(syncQueue.length?`محفوظ محلياً — بانتظار رفع ${syncQueue.length}`:'جاري الاتصال بـ Firestore','info');
   flushPendingPasswordHash();
   syncCycle(true).finally(()=>{firebaseBootStarted=false});
 }
@@ -517,19 +546,19 @@ async function syncCycle(forcePull=false){
   if(syncPullRunning || syncFlushRunning)return;
   syncPullRunning=true;
   try{
-    // فحص + تنزيل كامل من نفس API الذي يستخدمه كاش توب. لا تبقى الحالة على "جاري الاتصال" عند الخطأ.
-    const remote=await apiGet(CLOUD_ROOT,6500);
+    const remote=await pullFirestoreRoot(9000);
     firebaseConnected=true;
     applyRemoteRoot(remote && typeof remote==='object' ? remote : {});
     lastCloudPullMs=nowMs();
     await syncPasswordHashFromFirebase(remote && typeof remote==='object' ? remote : {});
     syncPullRunning=false;
     await flushSyncQueue();
-    if(!syncQueue.length)setSyncState('متصل ومتزامن','ok');
+    if(!syncQueue.length)setSyncState('متصل ومتزامن مع Firestore','ok');
   }catch(e){
     firebaseConnected=false;
-    console.warn('Cloud sync cycle failed',e);
-    const code=e?.status===401||e?.status===403?'صلاحيات القاعدة تمنع الاتصال':e?.message==='DB_TIMEOUT'?'انتهت مهلة الاتصال':'تعذر الوصول لقاعدة البيانات';
+    console.warn('Firestore sync cycle failed',e);
+    const msg=String(e?.code||e?.message||'');
+    const code=/permission-denied|PERMISSION_DENIED|403/i.test(msg)?'صلاحيات Firestore تمنع القراءة أو الكتابة':/timeout/i.test(msg)?'انتهت مهلة الاتصال':'تعذر الوصول إلى Firestore';
     setSyncState(`الحفظ المحلي يعمل — ${code}`,'error');
   }finally{
     syncPullRunning=false;

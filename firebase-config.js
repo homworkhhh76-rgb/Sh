@@ -1,20 +1,20 @@
-// نفس إعداد اتصال قاعدة البيانات المستخدم في برنامج كاش توب العامل.
-// المزامنة تتم عبر REST API وسيط متوافق مع نمط Realtime Database، بدون Firebase Auth أو Firestore SDK.
+// إعدادات Firebase التي زودتني بها لهذا النظام.
+// قاعدة البيانات المستخدمة: Cloud Firestore (default database).
 export const firebaseConfig = {
-  apiKey: "AIzaSyBM-xAF2lf0cspTu1-7HAXxyoORGGZsxA8",
-  authDomain: "toppo-14392.firebaseapp.com",
-  databaseURL: "https://cash-top-api-2026.vercel.app/api/rtdb",
-  projectId: "toppo-14392",
-  storageBucket: "toppo-14392.firebasestorage.app",
-  messagingSenderId: "124300854330",
-  appId: "1:124300854330:web:47e832cd565a0ef5c32103",
-  measurementId: "G-Q8H7CZRMTC"
+  apiKey: "AIzaSyCVeONuBxpEqgypFcgThCap_k2HKNCIdUQ",
+  authDomain: "nerrt-1c997.firebaseapp.com",
+  projectId: "nerrt-1c997",
+  storageBucket: "nerrt-1c997.firebasestorage.app",
+  messagingSenderId: "160695021429",
+  appId: "1:160695021429:web:b0318bcee88d101cf96d3c",
+  measurementId: "G-JW66N7Y143"
 };
 
-export const CASH_TOP_SYNC = {
-  companyKey: "COMPANY001",
-  branchId: "main",
-  appNode: "juicePOS"
+// عزل بيانات هذا التطبيق داخل Firestore.
+// المسار: juicePOSData/main/{collection}/{documentId}
+export const FIRESTORE_SYNC = {
+  rootCollection: "juicePOSData",
+  tenantId: "main"
 };
 
 export const DEFAULT_ADMIN_PASSWORD = "78789852";

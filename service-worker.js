@@ -1,4 +1,4 @@
-const VERSION = 'juice-pos-v8-users-permissions';
+const VERSION = 'juice-pos-v9-firestore';
 const CORE_CACHE = `${VERSION}-core`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const ALL_CACHES = [CORE_CACHE, RUNTIME_CACHE];
@@ -22,10 +22,7 @@ const STATIC_EXTERNAL_HOSTS = new Set([
 ]);
 
 function isDataApi(url) {
-  return url.hostname === 'cash-top-api-2026.vercel.app' ||
-    url.hostname.endsWith('.firebaseio.com') ||
-    url.hostname.endsWith('.firebasedatabase.app') ||
-    url.hostname === 'firestore.googleapis.com' ||
+  return url.hostname === 'firestore.googleapis.com' ||
     url.hostname.endsWith('.firestore.googleapis.com');
 }
 
